@@ -73,17 +73,22 @@ def train(train_data,l_rate,epochs,val_data):
     #初始化神经网络
     network = initializze_network(n_inputs,n_outputs)
 
+
     acc = [] #准确率数组
     for epoch in range (epochs):#训练epochs个回合
+        deltaWeightSum = 0.0 #参数变化
         for row in train_data:
             data_type = row[-1] #获取该行类别，只修改对应神经元的权重
-            neuron= network[0][data_type]["weights"] #获取该神经元
+            weights= network[0][data_type]["weights"] #获取该神经元权值
             output = process(network,row)[data_type]
-            for i in range(len(neuron)-1):
-                neuron[i] = neuron[i] + l_rate*(1-neuron[i])* output#调整权值  Δw = l_rate*(样本值-weights[i])output
-            neuron[-1] = neuron[-1] + l_rate*(1-neuron[-1])*output #调整偏置权值
-            network[0][data_type]["weights"] = neuron
+            for i in range(len(weights)-1):
+                deltaWeightSum += l_rate * (row[i] - weights[i])
+                weights[i] = weights[i] + l_rate*(row[i]-weights[i])#调整权值  Δw = l_rate*(input[i]-weights[i]
+            weights[-1] = weights[-1] + l_rate*(1-weights[-1]) #调整偏置权值
+            network[0][data_type]["weights"] = weights
         acc.append(validation(network, val_data))
+        if(deltaWeightSum==0): #权值不变，训练完成
+            break;
     plt.xlabel('epochs')
     plt.ylabel('accuracy')
     plt.plot(acc)
