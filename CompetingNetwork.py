@@ -72,12 +72,11 @@ def train(train_data,l_rate,epochs,val_data):
     n_outputs = len(set([row[-1] for row in train_data]))
     #初始化神经网络
     network = initializze_network(n_inputs,n_outputs)
-
+    for i in range(n_outputs):#加入计数
+        for j in range(n_outputs):
+            network[0][i][j] = 0
     acc = [] #准确率数组
     for epoch in range (epochs):#训练epochs个回合
-        for i in range(n_outputs):
-            for j in range(n_outputs):
-                network[0][i][j] = 0
         for row in train_data:
             # 找到胜者ID ，在这里为 0,1,2
             winnerId = findWinner(row,network[0])
@@ -86,7 +85,7 @@ def train(train_data,l_rate,epochs,val_data):
                 weights[i] = weights[i] + l_rate*(row[i]-weights[i])
             network[0][winnerId]["weights"] = weights
             network[0][winnerId][row[-1]] += 1
-        acc.append(validation(network, val_data,n_outputs))
+        acc.append(validation(network, val_data))
     plt.xlabel('epochs')
     plt.ylabel('accuracy')
     plt.plot(acc)
@@ -114,8 +113,22 @@ def findWinner(row,comLayer):
 
 
 def predict(network,row):
+    """
+
+    :param network:
+    :param row:
+    :return:
+    """
     outputs = process(network,row)
-    return outputs.index(max(outputs))
+    maxNeuron = outputs.index(max(outputs))  #最大神经元下标
+    n_outputs = len(network[0])              #输入的类别数
+    index = 0  #该神经元所代表的类别
+    tmp = 0    #最大值
+    for i in range(n_outputs): #找出该神经元对应的类别编号
+        if network[0][maxNeuron][i]>tmp:
+            tmp = network[0][maxNeuron][i]
+            index = i
+    return index
 
 
 def process(network,inputs):
@@ -137,7 +150,7 @@ def process(network,inputs):
     return outputs
 
 
-def validation(network,val_data,n_outputs):
+def validation(network,val_data):
     """
     测试神经网络在验证集上的效果
     :param network: 神经网络
@@ -145,6 +158,7 @@ def validation(network,val_data,n_outputs):
     :param n_outputs: 类别数量
     :return: 模型在验证集上的准确率
     """
+    n_outputs = len(network[0])
     # 获取预测类标
     predicted_label = []
     for row in val_data:
