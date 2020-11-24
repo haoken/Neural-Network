@@ -73,27 +73,43 @@ def train(train_data,l_rate,epochs,val_data):
     #初始化神经网络
     network = initializze_network(n_inputs,n_outputs)
 
-
     acc = [] #准确率数组
     for epoch in range (epochs):#训练epochs个回合
-        deltaWeightSum = 0.0 #参数变化
+        for i in range(n_outputs):
+            for j in range(n_outputs):
+                network[0][i][j] = 0
         for row in train_data:
-            data_type = row[-1] #获取该行类别，只修改对应神经元的权重
-            weights= network[0][data_type]["weights"] #获取该神经元权值
-            output = process(network,row)[data_type]
-            for i in range(len(weights)-1):
-                deltaWeightSum += l_rate * (row[i] - weights[i])
-                weights[i] = weights[i] + l_rate*(row[i]-weights[i])#调整权值  Δw = l_rate*(input[i]-weights[i]
-            weights[-1] = weights[-1] + l_rate*(1-weights[-1]) #调整偏置权值
-            network[0][data_type]["weights"] = weights
-        acc.append(validation(network, val_data))
-        if(deltaWeightSum==0): #权值不变，训练完成
-            break;
+            # 找到胜者ID ，在这里为 0,1,2
+            winnerId = findWinner(row,network[0])
+            weights = network[0][winnerId]["weights"]
+            for i in range(len(weights)-1): #注意最后一个是偏置的权值,在这里不用管
+                weights[i] = weights[i] + l_rate*(row[i]-weights[i])
+            network[0][winnerId]["weights"] = weights
+            network[0][winnerId][row[-1]] += 1
+        acc.append(validation(network, val_data,n_outputs))
     plt.xlabel('epochs')
     plt.ylabel('accuracy')
     plt.plot(acc)
     plt.show()
     return network,acc[-1]
+
+
+def findWinner(row,comLayer):
+    """
+    找到距离该行距离最近的神经元，返回它的下标
+    :param row: 某一行数据
+    :param comLayer: 竞争层
+    :return:
+    """
+    distance = [] #每个竞争神经元和权值之间的距离
+    for neuron in comLayer:
+        weights = neuron["weights"] #该神经元的权值
+        dis = 0.0
+        for i in range(len(weights)):
+            dis += pow(row[i]-weights[i],2)
+        distance.append(math.sqrt(dis))
+    winnerId = distance.index(min(distance))
+    return winnerId
 
 
 
@@ -116,23 +132,30 @@ def process(network,inputs):
         output = 0.0
         for i in range(len(weights)-1):
             output += inputs[i]*weights[i]
-        output += 1*weights[-1] #偏置为1，权重为neuron[-1]
+        # output += 1*weights[-1] #偏置为1，权重为neuron[-1]
         outputs.append(output)
     return outputs
 
 
-def validation(network,val_data):
+def validation(network,val_data,n_outputs):
     """
     测试神经网络在验证集上的效果
     :param network: 神经网络
     :param val_data: 验证集
+    :param n_outputs: 类别数量
     :return: 模型在验证集上的准确率
     """
     # 获取预测类标
     predicted_label = []
     for row in val_data:
         prediction = predict(network, row)
-        predicted_label.append(prediction)
+        index = 0 #类别
+        tmp = -1
+        for i in range (n_outputs):#得到这名神经元的类别
+            if network[0][prediction][i]>tmp:
+                tmp = network[0][prediction][i]
+                index = i
+        predicted_label.append(i)
     # 获取真实类标
     actual_label = [row[-1] for row in val_data]
     # 计算准确率
@@ -154,6 +177,7 @@ def accuracy_calculation(actual_label, predicted_label):
             correct_count += 1
     return correct_count / float(len(actual_label)) * 100.0
 
+
 if __name__ == "__main__":
     file_path = './IrisDataset/iris.csv'
     l_rate = 0.1  # 学习率
@@ -162,3 +186,5 @@ if __name__ == "__main__":
     train_data, val_data = load_dataset(file_path, n_train_data)
     network, acc = train(train_data, l_rate, epochs, val_data)
     print("准确率",acc)
+    index = predict(network,[5.9,3.0,5.1,1.8])
+    print("分类：",index)
